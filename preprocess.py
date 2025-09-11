@@ -67,7 +67,43 @@ def feature_data(df):
 
     return df
 
+def multicol_data(df):
+
+    # Take just numerical columns
+    df_numerical = df.select_dtypes(include='number')
+
+    # Create a correlation matrix
+    corr_matrix = df_numerical.corr()
+
+    # Create a matrix with salary correlations
+    corr_salary = corr_matrix['salary'].abs()
+
+    # Drop salary from the feature matrix
+    corr_matrix = corr_matrix.drop('salary',axis=0).drop('salary',axis=1)
+
+    # A list of columns to drop
+    columns_to_drop = set()
+
+    # Iterate through the feature matrix and analyze the correlations
+    for i in range(len(corr_matrix.columns)):
+        for j in range(i):
+            # Check if the correlation is above the threshold (using absolute value)
+            if abs(corr_matrix.iloc[i, j]) > 0.5:
+                feature1 = corr_matrix.columns[i]
+                feature2 = corr_matrix.columns[j]
+
+                # Compare the two features' correlations with the salary
+                if corr_salary[feature1] < corr_salary[feature2]:
+                    columns_to_drop.add(feature1)
+                else:
+                    columns_to_drop.add(feature2)
+
+    # Drop the chosen feature columns
+    df = df.drop(columns=columns_to_drop)
+    return df
+
 if __name__ == "__main__":
     df_cleaned = clean_data(data_path)
-    df = feature_data(df_cleaned)
-    print(df[['age', 'experience', 'bmi']].head())
+    df_featured = feature_data(df_cleaned)
+    df = multicol_data(df_featured)
+    print(list(df.select_dtypes('number').drop(columns='salary')))
