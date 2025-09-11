@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from sklearn.preprocessing import StandardScaler, OrdinalEncoder, OneHotEncoder
 import os
 import requests
 
@@ -102,8 +103,49 @@ def multicol_data(df):
     df = df.drop(columns=columns_to_drop)
     return df
 
+def transform_data(df):
+
+    # Seperate numerical and categorical features
+    num_feat_df = df.select_dtypes('number')
+    cat_feat_df = df.select_dtypes('object')
+
+    # Seperating salary column from features
+    y = num_feat_df['salary']
+    num_feat_df = num_feat_df.drop('salary',axis=1)
+
+    # Standardize numerical features
+    scaler = StandardScaler()
+    scaled_num_df = pd.DataFrame(
+        scaler.fit_transform(num_feat_df),
+        columns=num_feat_df.columns,
+        index=num_feat_df.index
+    )
+
+    # Ordinal encode categorical features
+    onehot = OneHotEncoder(sparse_output=False)
+    cat_feat_df_transformed = onehot.fit_transform(cat_feat_df)
+    og_categories = onehot.categories_
+    list_of_columns = np.concatenate(og_categories).ravel().tolist()
+    encoded_cat_df = pd.DataFrame(
+        cat_feat_df_transformed,
+        columns=list_of_columns,
+        index=cat_feat_df.index
+    )
+
+    # Merge numerical and categorical features
+    X = pd.concat([scaled_num_df, encoded_cat_df], axis=1)
+
+    return X, y
+
 if __name__ == "__main__":
     df_cleaned = clean_data(data_path)
     df_featured = feature_data(df_cleaned)
     df = multicol_data(df_featured)
-    print(list(df.select_dtypes('number').drop(columns='salary')))
+
+    X, y = transform_data(df)
+
+    answer = {
+        'shape': [X.shape, y.shape],
+        'features': list(X.columns),
+    }
+    print(answer)
